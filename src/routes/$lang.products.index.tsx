@@ -1,10 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { listVisibleCategories } from "@/lib/products";
 import { T, t, type Lang } from "@/lib/i18n";
 import { buildLocaleMeta, breadcrumbJsonLd } from "@/lib/seo";
 import { DirChevron, DirArrow } from "@/components/faratech/dir-icon";
+import { listCategories } from "@/lib/modules/categories/category.functions";
+import { dtoToCategory } from "@/lib/products-db-adapter";
 
 export const Route = createFileRoute("/$lang/products/")({
+  loader: async () => {
+    const dtos = await listCategories();
+    return { categories: dtos.map((d) => dtoToCategory(d)), counts: dtos };
+  },
   head: ({ params }) => {
     const lang = (params?.lang as Lang) ?? "fa";
     const locale = buildLocaleMeta(lang, (l) => `/${l}/products`);
@@ -17,18 +22,24 @@ export const Route = createFileRoute("/$lang/products/")({
       links: locale.links,
     };
   },
+  errorComponent: ({ error }) => (
+    <div className="max-w-2xl mx-auto p-8 text-sm text-red-600">
+      Failed to load categories: {error.message}
+    </div>
+  ),
+  notFoundComponent: () => <div className="p-8">No categories found.</div>,
   component: ProductsOverview,
 });
 
 function ProductsOverview() {
   const { lang } = Route.useParams();
   const l = lang as Lang;
-  const categories = listVisibleCategories();
+  const { categories, counts } = Route.useLoaderData();
   const crumbs = breadcrumbJsonLd([
     { name: t(T.home, l), path: `/${l}` },
     { name: t(T.products, l), path: `/${l}/products` },
   ]);
-  
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: crumbs }} />
@@ -52,7 +63,7 @@ function ProductsOverview() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categories.map((c) => (
+            {categories.map((c, idx) => (
               <Link
                 key={c.key}
                 to="/$lang/products/$category"
@@ -66,7 +77,7 @@ function ProductsOverview() {
                   <div className="flex items-start justify-between mb-2 gap-2">
                     <h3 className="font-heading text-lg font-bold text-[var(--brand-navy)]">{c.title[l]}</h3>
                     <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                      {c.products.length} {t(T.models, l)}
+                      {counts[idx].productCount} {t(T.models, l)}
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed mb-4">{c.blurb[l]}</p>
