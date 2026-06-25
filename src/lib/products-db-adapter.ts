@@ -23,11 +23,11 @@ import type {
   SpecificationGroup,
 } from "./products";
 import type {
-  CategoryDto,
   ProductDetailDto,
   ProductSummaryDto,
   LocalizedText as DtoLocalizedText,
 } from "@/lib/modules/products/product.dto";
+import type { CategoryDto } from "@/lib/modules/categories/category.dto";
 import { ENUM_TO_SLUG, type DbCategoryKey } from "./category-slug";
 import { MASTER_CATEGORY_COPY } from "./data/category-copy";
 
