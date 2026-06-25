@@ -1,15 +1,37 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { ProductPage } from "@/components/faratech/product-page";
-import { getVisibleCategory, getVisibleProduct } from "@/lib/products";
 import type { Lang } from "@/lib/i18n";
 import { buildLocaleMeta } from "@/lib/seo";
+import {
+  getProductBySlug,
+  listProducts,
+} from "@/lib/modules/products/product.functions";
+import { listCategories } from "@/lib/modules/categories/category.functions";
+import { detailToProduct, dtoToCategory } from "@/lib/products-db-adapter";
+import { slugToEnum } from "@/lib/category-slug";
 
 export const Route = createFileRoute("/$lang/products/$category/$product")({
-  loader: ({ params }) => {
-    const category = getVisibleCategory(params.category);
-    const product = getVisibleProduct(params.category, params.product);
-    if (!category || !product) throw notFound();
-    return { category, product };
+  loader: async ({ params }) => {
+    const enumKey = slugToEnum(params.category);
+    if (!enumKey) throw notFound();
+
+    // notFound() inside the server fn is already mapped; surface as 404.
+    const detail = await getProductBySlug({ data: { slug: params.product } });
+
+    // Defensive: ensure the product really belongs to the requested category.
+    if (detail.categoryKey !== enumKey) throw notFound();
+
+    const [allCategories, productsResult] = await Promise.all([
+      listCategories(),
+      listProducts({ data: { categoryKey: enumKey, limit: 100, offset: 0 } }),
+    ]);
+    const catDto = allCategories.find((c) => c.key === enumKey);
+    if (!catDto) throw notFound();
+
+    return {
+      category: dtoToCategory(catDto, productsResult.items),
+      product: detailToProduct(detail),
+    };
   },
   head: ({ loaderData, params }) => {
     const lang = (params?.lang as Lang) ?? "fa";
@@ -30,6 +52,12 @@ export const Route = createFileRoute("/$lang/products/$category/$product")({
       links: locale.links,
     };
   },
+  errorComponent: ({ error }) => (
+    <div className="max-w-2xl mx-auto p-8 text-sm text-red-600">
+      Failed to load product: {error.message}
+    </div>
+  ),
+  notFoundComponent: () => <div className="p-8">Product not found.</div>,
   component: ProductView,
 });
 
