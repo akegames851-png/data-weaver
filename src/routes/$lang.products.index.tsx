@@ -63,7 +63,7 @@ function ProductsOverview() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categories.map((c, idx) => (
+            {categories.map((c: typeof categories[number], idx: number) => (
               <Link
                 key={c.key}
                 to="/$lang/products/$category"
