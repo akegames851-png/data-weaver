@@ -1,14 +1,23 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { CategoryPage } from "@/components/faratech/category-page";
-import { getVisibleCategory } from "@/lib/products";
 import type { Lang } from "@/lib/i18n";
 import { buildLocaleMeta } from "@/lib/seo";
+import { listCategories } from "@/lib/modules/categories/category.functions";
+import { listProducts } from "@/lib/modules/products/product.functions";
+import { dtoToCategory } from "@/lib/products-db-adapter";
+import { slugToEnum } from "@/lib/category-slug";
 
 export const Route = createFileRoute("/$lang/products/$category/")({
-  loader: ({ params }) => {
-    const cat = getVisibleCategory(params.category);
-    if (!cat) throw notFound();
-    return cat;
+  loader: async ({ params }) => {
+    const enumKey = slugToEnum(params.category);
+    if (!enumKey) throw notFound();
+    const [allCategories, productsResult] = await Promise.all([
+      listCategories(),
+      listProducts({ data: { categoryKey: enumKey, limit: 100, offset: 0 } }),
+    ]);
+    const dto = allCategories.find((c) => c.key === enumKey);
+    if (!dto) throw notFound();
+    return dtoToCategory(dto, productsResult.items);
   },
   head: ({ loaderData, params }) => {
     const lang = (params?.lang as Lang) ?? "fa";
@@ -27,6 +36,12 @@ export const Route = createFileRoute("/$lang/products/$category/")({
       links: locale.links,
     };
   },
+  errorComponent: ({ error }) => (
+    <div className="max-w-2xl mx-auto p-8 text-sm text-red-600">
+      Failed to load category: {error.message}
+    </div>
+  ),
+  notFoundComponent: () => <div className="p-8">Category not found.</div>,
   component: CategoryView,
 });
 
